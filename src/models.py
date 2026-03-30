@@ -1,19 +1,59 @@
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import String, Boolean
-from sqlalchemy.orm import Mapped, mapped_column
+import os
+import sys
+from sqlalchemy import String, ForeignKey, Integer
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy import create_engine
+from eralchemy2 import render_er
 
-db = SQLAlchemy()
+class Base(DeclarativeBase):
+    pass
 
-class User(db.Model):
+class User(Base):
+    __tablename__ = "user"
+   
     id: Mapped[int] = mapped_column(primary_key=True)
-    email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
-    password: Mapped[str] = mapped_column(nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean(), nullable=False)
+    username: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+    email: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+   
+    
+    posts: Mapped[list["Post"]] = relationship("Post", back_populates="author")
+
+    comments: Mapped[list["Comment"]] = relationship("Comment", back_populates="author")
+
+class Post(Base):
+    __tablename__ = "post"
+   
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+   
+    
+    author: Mapped["User"] = relationship("User", back_populates="posts")
+    
+    media: Mapped[list["Media"]] = relationship("Media", back_populates="post")
+
+class Comment(Base):
+    __tablename__ = "comment"
+   
+    id: Mapped[int] = mapped_column(primary_key=True)
+    text: Mapped[str] = mapped_column(String(255), nullable=False)
+    author_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+    post_id: Mapped[int] = mapped_column(ForeignKey("post.id"))
+   
+    author: Mapped["User"] = relationship("User", back_populates="comments")
+
+class Media(Base):
+    __tablename__ = "media"
+   
+    id: Mapped[int] = mapped_column(primary_key=True)
+    url: Mapped[str] = mapped_column(String(255))
+    post_id: Mapped[int] = mapped_column(ForeignKey("post.id"))
+   
+    post: Mapped["Post"] = relationship("Post", back_populates="media")
 
 
-    def serialize(self):
-        return {
-            "id": self.id,
-            "email": self.email,
-            # do not serialize the password, its a security breach
-        }
+try:
+    render_er(Base, 'diagram.png')
+    print("¡Éxito! El diagrama se guardó en la raíz como diagram.png")
+except Exception as e:
+    print("Error al generar el diagrama")
+    raise e
